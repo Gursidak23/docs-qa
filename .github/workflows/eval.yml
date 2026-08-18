@@ -1,0 +1,60 @@
+name: Eval
+
+# Quality gate for the RAG pipeline. Runs on demand and weekly rather than on
+# every PR because it needs a pgvector database and (optionally) LLM API keys.
+# Retrieval metrics (Recall@k / MRR / nDCG) are always gated; answer-quality
+# metrics activate automatically when GEMINI/GROQ secrets are configured.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+
+    env:
+      DOCSQA_LLM__GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      DOCSQA_LLM__GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Install and start Postgres + pgvector
+        # Native install (no Docker). The cluster port is discovered
+        # dynamically and exported as the app's Postgres DSN.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16-pgvector
+          sudo systemctl start postgresql
+          PORT=$(pg_lsclusters -h | awk '$1=="16"{print $3; exit}')
+          sudo -u postgres psql -p "$PORT" -c "CREATE USER docsqa WITH PASSWORD 'docsqa' SUPERUSER;"
+          sudo -u postgres psql -p "$PORT" -c "CREATE DATABASE docsqa OWNER docsqa;"
+          echo "DOCSQA_POSTGRES__DSN=postgresql+asyncpg://docsqa:docsqa@localhost:$PORT/docsqa" >> "$GITHUB_ENV"
+
+      - name: Run migrations
+        run: alembic upgrade head
+
+      - name: Ingest evaluation corpus
+        run: docsqa ingest docsqa/eval/gold/corpus
+
+      - name: Run eval (gates on thresholds)
+        run: docsqa eval --strict --json-out eval-report.json --md-out eval-report.md
+
+      - name: Upload scorecard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-scorecard
+          path: |
+            eval-report.json
+            eval-report.md

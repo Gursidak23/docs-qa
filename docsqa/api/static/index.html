@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docs Q&amp;A &mdash; grounded answers, cited</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:ital,wght@0,400..700;1,400..600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    :root {
+      --night:      #0e1124;   /* deep indigo night */
+      --night-2:    #171a33;   /* raised surface (card) */
+      --night-3:    #1f2340;   /* inset / hover */
+
+      --text:       #ece2cc;   /* warm parchment ink */
+      --text-soft:  #a89e86;   /* muted warm grey */
+
+      --brass:      #c9a24b;   /* the single accent — candlelight brass */
+      --brass-lit:  #e3c072;   /* brighter brass for emphasis / hover */
+      --brass-soft: rgba(201, 162, 75, .16);
+
+      --grounded:   #5bbf8f;   /* status only */
+      --flag:       #dd8a5b;
+      --danger:     #e07a52;
+
+      --rule:       rgba(236, 226, 204, .12);
+      --rule-strong:rgba(236, 226, 204, .24);
+      --btn-ink:    #14121d;   /* dark text that sits on brass */
+
+      --display: "Instrument Serif", Georgia, "Times New Roman", serif;
+      --sans:    "Hanken Grotesk", system-ui, -apple-system, sans-serif;
+      --mono:    "Space Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+      --rail-w: 344px;
+      --measure: 700px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--night);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* Candlelight — a warm glow bleeding in from the corners of the room. */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(1200px 620px at 12% -12%, rgba(201, 162, 75, .12), transparent 60%),
+        radial-gradient(1000px 720px at 112% 118%, rgba(201, 162, 75, .07), transparent 60%);
+    }
+
+    ::selection { background: rgba(201, 162, 75, .32); color: #fff; }
+    [hidden] { display: none !important; }
+
+    /* ---------- Masthead ---------- */
+    .masthead {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 15px clamp(20px, 4vw, 40px);
+      border-bottom: 1px solid var(--rule-strong);
+      background: color-mix(in srgb, var(--night) 82%, transparent);
+      backdrop-filter: blur(6px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .brand-mark {
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(1.5rem, 2.6vw, 1.95rem);
+      letter-spacing: -0.01em;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: .32em;
+    }
+    .brand-tag {
+      font-family: var(--display);
+      background: var(--brass);
+      color: var(--btn-ink);
+      padding: .02em .3em;
+      border-radius: 5px;
+    }
+    .brand-kicker {
+      font-family: var(--mono);
+      font-size: .64rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .stats {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .02em;
+      color: var(--text-soft);
+      text-align: right;
+    }
+
+    /* ---------- Workspace ---------- */
+    .workspace {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) var(--rail-w);
+      min-height: 0;
+    }
+    .reading {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      border-right: 1px solid var(--rule);
+    }
+
+    /* ---------- Thread bar (conversational memory) ---------- */
+    .threadbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px clamp(20px, 5vw, 60px);
+      border-bottom: 1px solid var(--rule);
+    }
+    .thread-state {
+      font-family: var(--mono);
+      font-size: .66rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .thread-state.active { color: var(--brass-lit); }
+    .thread-state .tdot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .btn-quiet {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: .64rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--rule-strong);
+      border-radius: 6px;
+      padding: 6px 11px;
+      cursor: pointer;
+      transition: border-color .15s ease, color .15s ease;
+    }
+    .btn-quiet:hover { border-color: var(--brass); color: var(--brass-lit); }
+
+    /* ---------- Message stream ---------- */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: clamp(26px, 4vw, 52px) clamp(20px, 5vw, 60px) 44px;
+      display: flex;
+      flex-direction: column;
+      gap: 34px;
+      scroll-behavior: smooth;
+    }
+
+    /* ---------- Hero (type-forward thesis) ---------- */
+    .hero { max-width: var(--measure); padding-top: clamp(4px, 3vh, 36px); }
+    .hero-kicker {
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .24em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      margin: 0 0 18px;
+      animation: rise .6s .05s both;
+    }
+    .hero-title {
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(2.9rem, 8vw, 5.6rem);
+      line-height: 1.0;
+      letter-spacing: -0.01em;
+      margin: 0 0 24px;
+      animation: rise .7s .12s both;
+    }
+    .hero-title .line2 { color: var(--brass-lit); font-style: italic; }
+    .hero-sub {
+      max-width: 52ch;
+      font-family: var(--sans);
+      font-size: 1.16rem;
+      line-height: 1.62;
+      color: var(--text);
+      margin: 0;
+      animation: rise .7s .22s both;
+    }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+    /* ---------- Q&A entries ---------- */
+    .msg { max-width: var(--measure); width: 100%; }
+    .msg.user { border-top: 1px solid var(--rule); padding-top: 34px; }
+    .msg.user:first-of-type { border-top: none; padding-top: 0; }
+    .bubble { line-height: 1.72; white-space: pre-wrap; word-wrap: break-word; }
+    .msg .label {
+      font-family: var(--mono);
+      font-size: .62rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      display: block;
+      margin-bottom: 12px;
+    }
+    .msg.user .bubble {
+      font-family: var(--display);
+      font-weight: 400;
+      font-style: italic;
+      font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+      line-height: 1.16;
+      letter-spacing: 0;
+      color: var(--brass-lit);
+    }
+    .msg.bot .bubble {
+      font-family: var(--sans);
+      font-weight: 400;
+      font-size: 1.14rem;
+      color: var(--text);
+    }
+
+    .cursor {
+      display: inline-block;
+      width: .5ch;
+      color: var(--brass-lit);
+      animation: blink 1.05s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ---------- Legible retrieval status ---------- */
+    .status {
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .04em;
+      color: var(--text-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .scan {
+      position: relative;
+      width: 46px; height: 3px;
+      background: var(--rule-strong);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .scan::after {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 40%;
+      background: var(--brass);
+      border-radius: 3px;
+      box-shadow: 0 0 8px var(--brass);
+      animation: scanx 1s ease-in-out infinite;
+    }
+    @keyframes scanx { 0% { left: -40%; } 100% { left: 100%; } }
+
+    /* ---------- Citations (wired to the source "peek") ---------- */
+    .cite {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: .78em;
+      color: var(--brass-lit);
+      text-decoration: none;
+      cursor: pointer;
+      padding: 0 3px;
+      border-radius: 3px;
+      border-bottom: 2px solid var(--brass-soft);
+      transition: color .12s ease, background .12s ease, border-color .12s ease;
+    }
+    .cite:hover,
+    .cite:focus-visible,
+    .cite.cite-active {
+      color: var(--btn-ink);
+      background: var(--brass);
+      border-color: var(--brass);
+      outline: none;
+    }
+    .cite[data-static] { cursor: default; }
+
+    /* ---------- Source peek popover (signature interaction) ---------- */
+    .peek {
+      position: fixed;
+      z-index: 60;
+      top: 0; left: 0;
+      width: min(340px, calc(100vw - 24px));
+      background: var(--night-2);
+      border: 1px solid var(--brass);
+      border-radius: 10px;
+      box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+      padding: 12px 14px;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(4px);
+      transition: opacity .12s ease, transform .12s ease;
+    }
+    .peek.show { opacity: 1; visibility: visible; transform: none; }
+    .pk-n { font-family: var(--mono); font-weight: 700; font-size: .72rem; color: var(--brass-lit); }
+    .pk-head { font-family: var(--mono); font-weight: 700; font-size: .78rem; margin-top: 3px; color: var(--text); }
+    .pk-snip { font-family: var(--sans); font-size: .92rem; line-height: 1.5; margin-top: 8px; color: var(--text); }
+    .pk-hint {
+      font-family: var(--mono);
+      font-size: .58rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      margin-top: 10px;
+    }
+
+    /* ---------- Answer meta + verification stamp ---------- */
+    .meta {
+      margin-top: 20px;
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--text-soft);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-family: var(--mono);
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      padding: 5px 10px;
+      border: 2px solid currentColor;
+      border-radius: 4px;
+      transform: rotate(-3deg);
+    }
+    .badge.ok { color: var(--grounded); }
+    .badge.warn { color: var(--flag); }
+    .badge.stamp-in { animation: stampin .38s cubic-bezier(.2, 1.5, .4, 1) both; }
+    @keyframes stampin {
+      0%   { opacity: 0; transform: rotate(-3deg) scale(1.9); }
+      55%  { opacity: 1; }
+      100% { transform: rotate(-3deg) scale(1); }
+    }
+
+    /* ---------- Evidence cards ---------- */
+    .sources:not(:empty) {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: var(--measure);
+    }
+    .sources:not(:empty)::before {
+      content: "Evidence";
+      font-family: var(--mono);
+      font-size: .64rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .sources:empty { display: none; }
+
+    .source {
+      position: relative;
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--rule-strong);
+      border-radius: 8px;
+      padding: 12px 14px 12px 16px;
+      background: var(--night-2);
+      transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+    }
+    .source.linked {
+      border-left-color: var(--brass);
+      transform: translateX(3px);
+      box-shadow: -6px 0 0 -3px var(--brass-soft), 0 10px 28px rgba(0, 0, 0, .4);
+    }
+    .source.pulse { animation: pulse 1.1s ease; }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 var(--brass-soft); }
+      35%  { box-shadow: 0 0 0 6px var(--brass-soft); }
+      100% { box-shadow: 0 0 0 0 transparent; }
+    }
+    .src-head { font-family: var(--mono); font-weight: 700; font-size: .8rem; color: var(--text); }
+    .src-head .src-n { color: var(--brass-lit); }
+    .src-uri { font-family: var(--mono); font-size: .7rem; color: var(--text-soft); margin-top: 3px; word-break: break-all; }
+    .src-snip { font-family: var(--sans); font-size: .98rem; line-height: 1.5; color: var(--text); opacity: .82; margin-top: 8px; }
+
+    /* ---------- Composer ---------- */
+    .composer {
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+      padding: 16px clamp(20px, 5vw, 60px);
+      border-top: 1px solid var(--rule-strong);
+      background: color-mix(in srgb, var(--night) 82%, transparent);
+    }
+    .ask-input {
+      flex: 1;
+      min-width: 0;
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: 1.42rem;
+      line-height: 1.3;
+      color: var(--text);
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--rule-strong);
+      padding: 8px 2px;
+      resize: none;
+      max-height: 160px;
+      overflow-y: auto;
+      caret-color: var(--brass-lit);
+    }
+    .ask-input::placeholder { color: var(--text-soft); font-style: italic; }
+    .ask-input:focus { outline: none; border-bottom-color: var(--brass); }
+    .ask-input:disabled { opacity: .55; }
+
+    /* ---------- Controls ---------- */
+    .btn {
+      font-family: var(--mono);
+      font-size: .74rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--btn-ink);
+      background: var(--brass);
+      border: 1px solid var(--brass);
+      border-radius: 6px;
+      padding: 12px 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s ease, color .15s ease, border-color .15s ease, transform .05s ease;
+    }
+    .btn:hover { background: var(--brass-lit); border-color: var(--brass-lit); }
+    .btn:active { transform: translateY(1px); }
+    .btn.ghost { background: transparent; color: var(--text); border-color: var(--rule-strong); }
+    .btn.ghost:hover { background: var(--brass); color: var(--btn-ink); border-color: var(--brass); }
+    .btn:disabled { opacity: .5; cursor: progress; }
+
+    .field {
+      width: 100%;
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: var(--text);
+      background: var(--night-3);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      padding: 9px 11px;
+    }
+    .field:focus { outline: none; border-color: var(--brass); }
+    .field.file { padding: 8px; }
+    .field.file::file-selector-button {
+      font-family: var(--mono);
+      font-size: .66rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text);
+      background: var(--night-2);
+      border: 1px solid var(--rule-strong);
+      border-radius: 5px;
+      padding: 6px 10px;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+
+    /* ---------- Rail ---------- */
+    .rail {
+      overflow-y: auto;
+      padding: clamp(18px, 3vw, 26px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .panel {
+      border: 1px solid var(--rule);
+      border-radius: 10px;
+      background: var(--night-2);
+      padding: 15px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .panel--note { background: transparent; border-style: dashed; border-color: var(--rule-strong); }
+    .panel-h {
+      margin: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: .66rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .panel-h .count { font-size: .62rem; letter-spacing: .04em; color: var(--brass-lit); }
+    .note { margin: 0; font-family: var(--sans); font-size: .96rem; line-height: 1.55; color: var(--text-soft); }
+    .toast { margin: 0; min-height: 15px; font-family: var(--mono); font-size: .7rem; color: var(--text-soft); }
+    .toast.err { color: var(--flag); }
+
+    /* ---------- Feedback ---------- */
+    .fb { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+    .fb-btn {
+      font-family: var(--mono);
+      font-size: .64rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      background: transparent;
+      border: 1px solid var(--rule-strong);
+      border-radius: 5px;
+      padding: 4px 8px;
+      cursor: pointer;
+      transition: border-color .15s ease, color .15s ease, background .15s ease;
+    }
+    .fb-btn:hover { border-color: var(--brass); color: var(--brass-lit); }
+    .fb-btn.chosen { border-color: var(--brass); color: var(--btn-ink); background: var(--brass); }
+    .fb-note { margin-left: auto; font-family: var(--mono); font-size: .64rem; color: var(--grounded); }
+
+    /* ---------- Library ---------- */
+    .lib-list, .recent-list { display: flex; flex-direction: column; gap: 8px; }
+    .lib-empty { margin: 0; }
+    .lib-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      border: 1px solid var(--rule); border-radius: 8px; padding: 9px 10px; background: var(--night-3);
+    }
+    .lib-body { flex: 1; min-width: 0; }
+    .lib-title {
+      font-family: var(--mono); font-size: .74rem; font-weight: 700; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .lib-meta { font-family: var(--mono); font-size: .64rem; color: var(--text-soft); margin-top: 3px; }
+    .type-tag {
+      text-transform: uppercase; letter-spacing: .1em; border: 1px solid var(--rule-strong);
+      border-radius: 3px; padding: 0 4px; margin-right: 6px; color: var(--text-soft);
+    }
+    .del-btn {
+      font-family: var(--mono); font-size: .6rem; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text-soft); background: transparent; border: 1px solid var(--rule-strong);
+      border-radius: 5px; padding: 4px 7px; cursor: pointer; flex-shrink: 0;
+    }
+    .del-btn:hover { border-color: var(--flag); color: var(--flag); }
+    .confirm { display: inline-flex; gap: 6px; flex-shrink: 0; }
+    .confirm button {
+      font-family: var(--mono); font-size: .6rem; text-transform: uppercase; letter-spacing: .08em;
+      border-radius: 5px; padding: 4px 7px; cursor: pointer; border: 1px solid var(--rule-strong); background: transparent;
+    }
+    .confirm .yes { color: var(--flag); border-color: var(--flag); }
+    .confirm .yes:hover { background: rgba(221, 138, 91, .14); }
+    .confirm .no { color: var(--text-soft); }
+    .confirm .no:hover { border-color: var(--text); color: var(--text); }
+
+    /* ---------- Recent questions ---------- */
+    .recent-item { border-left: 2px solid var(--rule-strong); padding: 3px 0 3px 10px; }
+    .recent-q {
+      font-family: var(--mono); font-size: .72rem; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .recent-meta { font-family: var(--mono); font-size: .62rem; color: var(--text-soft); margin-top: 2px; display: flex; gap: 8px; align-items: center; }
+    .dot-grounded { color: var(--grounded); }
+    .dot-ungrounded { color: var(--flag); }
+
+    /* ---------- Focus visibility ---------- */
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--brass); outline-offset: 2px;
+    }
+
+    /* ---------- Scrollbars ---------- */
+    #messages::-webkit-scrollbar, .rail::-webkit-scrollbar, .ask-input::-webkit-scrollbar { width: 10px; }
+    #messages::-webkit-scrollbar-thumb, .rail::-webkit-scrollbar-thumb {
+      background: var(--rule-strong); border-radius: 10px; border: 3px solid var(--night);
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 900px) {
+      body { height: auto; min-height: 100dvh; overflow: auto; }
+      .workspace { display: flex; flex-direction: column; }
+      .reading { border-right: none; }
+      #messages { overflow: visible; }
+      .composer { position: sticky; bottom: 0; }
+      .rail { border-top: 1px solid var(--rule); display: grid; grid-template-columns: 1fr 1fr; }
+      .panel--note { grid-column: 1 / -1; }
+    }
+    @media (max-width: 560px) { .rail { grid-template-columns: 1fr; } }
+
+    /* ---------- Reduced motion ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+      .cursor { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand">
+      <span class="brand-mark">Docs&nbsp;<span class="brand-tag">Q&amp;A</span></span>
+      <span class="brand-kicker">grounded answers, cited</span>
+    </div>
+    <div id="stats" class="stats">&mdash;</div>
+  </header>
+
+  <main class="workspace">
+    <section class="reading">
+      <div class="threadbar" id="threadbar" hidden>
+        <span class="thread-state" id="threadState"><span class="tdot"></span>New conversation</span>
+        <button class="btn-quiet" id="newThreadBtn" type="button">New thread</button>
+      </div>
+
+      <div id="messages">
+        <div id="intro" class="hero">
+          <p class="hero-kicker">Retrieval-grounded Q&amp;A</p>
+          <h1 class="hero-title">Grounded answers.<br /><span class="line2">Proof on tap.</span></h1>
+          <p class="hero-sub">
+            Ask across your docs and get an answer built only from what it retrieved.
+            Hover any marker like <span class="cite" data-static>[1]</span> to see the exact
+            passage behind it. No match in your library? It says so &mdash; it won&rsquo;t guess.
+          </p>
+        </div>
+      </div>
+
+      <div class="composer">
+        <textarea
+          id="question"
+          class="ask-input"
+          rows="1"
+          autocomplete="off"
+          aria-label="Ask a question about your documents"
+          placeholder="Ask a question about your documents&hellip;"
+        ></textarea>
+        <button id="askBtn" class="btn">Ask</button>
+      </div>
+    </section>
+
+    <aside class="rail" aria-label="Your library">
+      <section class="panel">
+        <h2 class="panel-h">Add a file</h2>
+        <input
+          type="file"
+          id="file"
+          class="field file"
+          aria-label="Choose a file to add"
+          accept=".pdf,.md,.markdown,.html,.htm,.txt,.rst"
+        />
+        <button id="uploadBtn" class="btn ghost">Add file</button>
+        <p class="toast" id="uploadToast"></p>
+        <p class="note">PDF, Markdown, HTML, or plain text.</p>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-h">Fetch a URL</h2>
+        <input
+          type="text"
+          id="url"
+          class="field"
+          aria-label="Documentation URL to fetch"
+          placeholder="https://docs.example.com/guide"
+        />
+        <button id="urlBtn" class="btn ghost">Fetch &amp; add</button>
+        <p class="toast" id="urlToast"></p>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-h">Library <span class="count" id="libCount"></span></h2>
+        <div id="library" class="lib-list">
+          <p class="note lib-empty">No documents yet &mdash; add a file or fetch a URL to start.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-h">Recent questions</h2>
+        <div id="recent" class="recent-list">
+          <p class="note">Your questions will appear here.</p>
+        </div>
+      </section>
+
+      <section class="panel panel--note">
+        <h2 class="panel-h">How it works</h2>
+        <p class="note">
+          Your question runs through hybrid retrieval &mdash; meaning and keywords &mdash;
+          a cross-encoder re-ranks the matches, and the model answers using only those
+          passages, each tagged <span class="cite" data-static>[n]</span> and one tap from
+          its source.
+        </p>
+      </section>
+    </aside>
+  </main>
+
+  <div class="peek" id="peek" aria-hidden="true">
+    <span class="pk-n"></span>
+    <div class="pk-head"></div>
+    <div class="pk-snip"></div>
+    <div class="pk-hint">Click to jump to source</div>
+  </div>
+
+  <script>
+    const API = "/api/v1";
+    const messagesEl = document.getElementById("messages");
+    const questionEl = document.getElementById("question");
+    const askBtn = document.getElementById("askBtn");
+    const introEl = document.getElementById("intro");
+    const threadbarEl = document.getElementById("threadbar");
+    const threadStateEl = document.getElementById("threadState");
+    const peekEl = document.getElementById("peek");
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[c]));
+    }
+
+    function linkifyCitations(text, msgId) {
+      return escapeHtml(text).replace(/\[(\d+)\]/g, (m, n) =>
+        `<a class="cite" href="#" data-msg="${msgId}" data-i="${n}">[${n}]</a>`);
+    }
+
+    let msgCounter = 0;
+    let busy = false;
+    // Prior conversation turns (oldest first), sent with each ask for follow-ups.
+    let history = [];
+    const MAX_HISTORY = 12;
+
+    /* ---------- Thread / memory surface ---------- */
+    function updateThreadState() {
+      const turns = Math.floor(history.length / 2);
+      if (turns > 0) {
+        threadStateEl.classList.add("active");
+        threadStateEl.innerHTML =
+          `<span class="tdot"></span>Following up &middot; ${turns} turn${turns === 1 ? "" : "s"}`;
+      } else {
+        threadStateEl.classList.remove("active");
+        threadStateEl.innerHTML = `<span class="tdot"></span>New conversation`;
+      }
+    }
+
+    function newThread() {
+      history = [];
+      messagesEl.querySelectorAll(".msg").forEach(n => n.remove());
+      introEl.hidden = false;
+      threadbarEl.hidden = true;
+      hidePeek();
+      updateThreadState();
+      questionEl.value = "";
+      autoGrow();
+      questionEl.focus();
+    }
+    document.getElementById("newThreadBtn").addEventListener("click", newThread);
+
+    /* ---------- Messages ---------- */
+    function addUserMessage(text) {
+      const el = document.createElement("div");
+      el.className = "msg user";
+      el.innerHTML = `<span class="label">You asked</span><div class="bubble"></div>`;
+      el.querySelector(".bubble").textContent = text;
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addBotMessage() {
+      const id = "m" + (++msgCounter);
+      const el = document.createElement("div");
+      el.className = "msg bot";
+      el.dataset.id = id;
+      el.setAttribute("aria-busy", "true");
+      el.innerHTML = `
+        <span class="label">Answer</span>
+        <div class="status"><span class="scan"></span><span class="status-text">Searching your library&hellip;</span></div>
+        <div class="bubble" aria-live="polite"><span class="answer"></span><span class="cursor">&#9612;</span></div>
+        <div class="meta" style="display:none"></div>
+        <div class="sources"></div>`;
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return el;
+    }
+
+    function renderSources(el, sources, msgId) {
+      const box = el.querySelector(".sources");
+      box.innerHTML = "";
+      for (const s of sources) {
+        const card = document.createElement("div");
+        card.className = "source";
+        card.id = `${msgId}-src-${s.index}`;
+        const where = s.heading_path || s.title || s.uri;
+        const page = s.page_no ? ` &middot; p.${s.page_no}` : "";
+        card.innerHTML =
+          `<div class="src-head"><span class="src-n">[${s.index}]</span> ${escapeHtml(where)}${page}</div>` +
+          `<div class="src-uri">${escapeHtml(s.uri)}</div>` +
+          `<div class="src-snip">${escapeHtml(s.snippet || "")}</div>`;
+        box.appendChild(card);
+      }
+    }
+
+    /* ---------- Citation <-> evidence ---------- */
+    function citeTarget(cite) {
+      if (!cite || !cite.dataset.msg) return null;
+      return document.getElementById(`${cite.dataset.msg}-src-${cite.dataset.i}`);
+    }
+    function citesForCard(card) {
+      const match = card.id.match(/^(m\d+)-src-(\d+)$/);
+      if (!match) return [];
+      return [...document.querySelectorAll(`.cite[data-msg="${match[1]}"][data-i="${match[2]}"]`)];
+    }
+
+    /* ---------- The source peek (signature interaction) ---------- */
+    function showPeek(cite) {
+      const card = citeTarget(cite);
+      if (!card) return;
+      peekEl.querySelector(".pk-n").textContent = `[${cite.dataset.i}] evidence`;
+      peekEl.querySelector(".pk-head").textContent = card.querySelector(".src-head").textContent.trim();
+      peekEl.querySelector(".pk-snip").textContent = card.querySelector(".src-snip").textContent.trim();
+      peekEl.classList.add("show");
+      const r = cite.getBoundingClientRect();
+      const pw = peekEl.offsetWidth;
+      const ph = peekEl.offsetHeight;
+      let left = Math.min(Math.max(12, r.left), window.innerWidth - pw - 12);
+      let top = r.top - ph - 10;
+      if (top < 12) top = r.bottom + 10;
+      peekEl.style.left = left + "px";
+      peekEl.style.top = top + "px";
+    }
+    function hidePeek() { peekEl.classList.remove("show"); }
+
+    document.addEventListener("mouseover", (e) => {
+      const cite = e.target.closest(".cite");
+      if (cite && cite.dataset.msg) {
+        cite.classList.add("cite-active");
+        const card = citeTarget(cite);
+        if (card) card.classList.add("linked");
+        showPeek(cite);
+        return;
+      }
+      const card = e.target.closest(".source");
+      if (card) { card.classList.add("linked"); citesForCard(card).forEach(c => c.classList.add("cite-active")); }
+    });
+    document.addEventListener("mouseout", (e) => {
+      const cite = e.target.closest(".cite");
+      if (cite && cite.dataset.msg) {
+        cite.classList.remove("cite-active");
+        const card = citeTarget(cite);
+        if (card) card.classList.remove("linked");
+        hidePeek();
+        return;
+      }
+      const card = e.target.closest(".source");
+      if (card) { card.classList.remove("linked"); citesForCard(card).forEach(c => c.classList.remove("cite-active")); }
+    });
+    document.addEventListener("focusin", (e) => {
+      const cite = e.target.closest(".cite");
+      if (cite && cite.dataset.msg) { cite.classList.add("cite-active"); showPeek(cite); }
+    });
+    document.addEventListener("focusout", (e) => {
+      const cite = e.target.closest(".cite");
+      if (cite && cite.dataset.msg) { cite.classList.remove("cite-active"); hidePeek(); }
+    });
+
+    document.addEventListener("click", (e) => {
+      const cite = e.target.closest(".cite");
+      if (!cite || !cite.dataset.msg) return;
+      e.preventDefault();
+      hidePeek();
+      const target = citeTarget(cite);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.remove("pulse");
+      void target.offsetWidth; // restart the pulse if re-clicked
+      target.classList.add("pulse");
+      setTimeout(() => target.classList.remove("pulse"), 1200);
+    });
+
+    messagesEl.addEventListener("scroll", hidePeek);
+
+    /* ---------- Ask ---------- */
+    function setBusy(on) {
+      busy = on;
+      askBtn.disabled = on;
+      askBtn.textContent = on ? "Asking\u2026" : "Ask";
+    }
+
+    async function ask(question) {
+      if (busy) return;
+      setBusy(true);
+      introEl.hidden = true;
+      threadbarEl.hidden = false;
+
+      addUserMessage(question);
+      const el = addBotMessage();
+      const msgId = el.dataset.id;
+      const statusEl = el.querySelector(".status");
+      const statusText = el.querySelector(".status-text");
+      const answerEl = el.querySelector(".answer");
+      const cursorEl = el.querySelector(".cursor");
+      const metaEl = el.querySelector(".meta");
+      let answer = "";
+      let sources = [];
+      let firstToken = true;
+
+      try {
+        const resp = await fetch(`${API}/ask/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, history: history.slice(-6) }),
+        });
+        if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let idx;
+          while ((idx = buffer.indexOf("\n\n")) >= 0) {
+            const raw = buffer.slice(0, idx).trim();
+            buffer = buffer.slice(idx + 2);
+            if (!raw.startsWith("data:")) continue;
+            const evt = JSON.parse(raw.slice(5).trim());
+            if (evt.type === "sources") {
+              sources = evt.sources;
+              renderSources(el, sources, msgId);
+              const n = sources.length;
+              statusText.textContent = n
+                ? `Found ${n} passage${n === 1 ? "" : "s"} \u2014 composing`
+                : "No matching passages \u2014 checking";
+            } else if (evt.type === "token") {
+              if (firstToken) { firstToken = false; statusEl.remove(); }
+              answer += evt.text;
+              answerEl.innerHTML = linkifyCitations(answer, msgId);
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            } else if (evt.type === "done") {
+              statusEl.remove();
+              cursorEl.remove();
+              const grounded = evt.grounded;
+              metaEl.style.display = "flex";
+              const cls = grounded ? "ok" : "warn";
+              const label = grounded ? "grounded" : (evt.outcome || "unverified");
+              metaEl.innerHTML =
+                `<span class="badge ${cls} stamp-in">${label}</span>` +
+                `<span>via ${escapeHtml(evt.provider || "?")}</span>` +
+                `<span>${(evt.citations || []).length} citation(s)</span>`;
+              if (evt.query_log_id != null) renderFeedback(metaEl, evt.query_log_id);
+              rememberTurn(question, answer);
+              refreshRecent();
+            } else if (evt.type === "error") {
+              statusEl.remove();
+              cursorEl.remove();
+              answerEl.innerHTML = `<span style="color:var(--danger)">Couldn&rsquo;t finish that: ${escapeHtml(evt.message)}</span>`;
+            }
+          }
+        }
+      } catch (err) {
+        if (statusEl.isConnected) statusEl.remove();
+        cursorEl.remove();
+        answerEl.innerHTML = `<span style="color:var(--danger)">The request didn&rsquo;t complete: ${escapeHtml(String(err))}. Check the server and try again.</span>`;
+      } finally {
+        el.removeAttribute("aria-busy");
+        setBusy(false);
+        questionEl.focus();
+      }
+    }
+
+    function rememberTurn(question, answer) {
+      history.push({ role: "user", content: question });
+      history.push({ role: "assistant", content: answer });
+      if (history.length > MAX_HISTORY) history = history.slice(-MAX_HISTORY);
+      updateThreadState();
+    }
+
+    /* ---------- Feedback ---------- */
+    function renderFeedback(metaEl, queryLogId) {
+      const group = document.createElement("span");
+      group.className = "fb";
+      const make = (labelText, helpful, aria) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "fb-btn";
+        b.textContent = labelText;
+        b.setAttribute("aria-label", aria);
+        b.addEventListener("click", () => sendFeedback(queryLogId, helpful, b));
+        return b;
+      };
+      group.append(
+        make("Helpful", true, "Mark this answer helpful"),
+        make("Not helpful", false, "Mark this answer not helpful"),
+      );
+      metaEl.appendChild(group);
+    }
+
+    async function sendFeedback(queryLogId, helpful, btn) {
+      try {
+        const r = await fetch(`${API}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query_log_id: queryLogId, helpful }),
+        });
+        if (!r.ok && r.status !== 204) throw new Error();
+        const group = btn.parentElement;
+        group.querySelectorAll(".fb-btn").forEach((b) => { b.classList.remove("chosen"); b.disabled = true; });
+        btn.classList.add("chosen");
+        if (!group.querySelector(".fb-note")) {
+          const note = document.createElement("span");
+          note.className = "fb-note";
+          note.textContent = "Thanks \u2014 noted";
+          group.appendChild(note);
+        }
+        refreshRecent();
+      } catch { /* feedback is best-effort */ }
+    }
+
+    /* ---------- Composer behaviour ---------- */
+    function autoGrow() {
+      questionEl.style.height = "auto";
+      questionEl.style.height = Math.min(questionEl.scrollHeight, 160) + "px";
+    }
+    function submitQuestion() {
+      if (busy) return;
+      const q = questionEl.value.trim();
+      if (!q) return;
+      questionEl.value = "";
+      autoGrow();
+      ask(q);
+    }
+    askBtn.addEventListener("click", submitQuestion);
+    questionEl.addEventListener("input", autoGrow);
+    questionEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitQuestion(); }
+    });
+
+    /* ---------- Stats / library / recent ---------- */
+    async function refreshStats() {
+      try {
+        const r = await fetch(`${API}/stats`);
+        const s = await r.json();
+        document.getElementById("stats").textContent =
+          `${s.documents} document(s) \u00b7 ${s.chunks} passage(s) indexed`;
+      } catch { /* stats are non-essential; leave the placeholder */ }
+    }
+
+    function formatSize(bytes) {
+      if (!bytes) return "";
+      if (bytes < 1024) return ` \u00b7 ${bytes} B`;
+      if (bytes < 1024 * 1024) return ` \u00b7 ${(bytes / 1024).toFixed(0)} KB`;
+      return ` \u00b7 ${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    async function refreshLibrary() {
+      try {
+        const r = await fetch(`${API}/documents?limit=100`);
+        if (!r.ok) throw new Error();
+        renderLibrary(await r.json());
+      } catch { /* leave whatever is shown */ }
+    }
+
+    function renderLibrary(docs) {
+      const box = document.getElementById("library");
+      const count = document.getElementById("libCount");
+      box.innerHTML = "";
+      count.textContent = docs.length ? String(docs.length) : "";
+      if (!docs.length) {
+        box.innerHTML = `<p class="note lib-empty">No documents yet &mdash; add a file or fetch a URL to start.</p>`;
+        return;
+      }
+      for (const d of docs) {
+        const name = d.title || d.uri;
+        const item = document.createElement("div");
+        item.className = "lib-item";
+        const body = document.createElement("div");
+        body.className = "lib-body";
+        body.innerHTML =
+          `<div class="lib-title" title="${escapeHtml(d.uri)}">${escapeHtml(name)}</div>` +
+          `<div class="lib-meta"><span class="type-tag">${escapeHtml(d.source_type)}</span>` +
+          `${d.chunk_count} passage(s)${formatSize(d.byte_size)}</div>`;
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "del-btn";
+        del.textContent = "Delete";
+        del.setAttribute("aria-label", `Delete ${name}`);
+        del.addEventListener("click", () => confirmDelete(item, del, d.id));
+        item.append(body, del);
+        box.appendChild(item);
+      }
+    }
+
+    function confirmDelete(item, delBtn, id) {
+      delBtn.hidden = true;
+      const box = document.createElement("span");
+      box.className = "confirm";
+      const yes = document.createElement("button");
+      yes.type = "button"; yes.className = "yes"; yes.textContent = "Remove";
+      const no = document.createElement("button");
+      no.type = "button"; no.className = "no"; no.textContent = "Keep";
+      no.addEventListener("click", () => { box.remove(); delBtn.hidden = false; });
+      yes.addEventListener("click", async () => {
+        try {
+          const r = await fetch(`${API}/documents/${id}`, { method: "DELETE" });
+          if (!r.ok && r.status !== 204) throw new Error();
+          refreshLibrary();
+          refreshStats();
+        } catch {
+          box.remove();
+          delBtn.hidden = false;
+        }
+      });
+      box.append(yes, no);
+      item.appendChild(box);
+    }
+
+    async function refreshRecent() {
+      try {
+        const r = await fetch(`${API}/queries?limit=8`);
+        if (!r.ok) throw new Error();
+        renderRecent(await r.json());
+      } catch { /* leave whatever is shown */ }
+    }
+
+    function renderRecent(rows) {
+      const box = document.getElementById("recent");
+      box.innerHTML = "";
+      if (!rows.length) {
+        box.innerHTML = `<p class="note">Your questions will appear here.</p>`;
+        return;
+      }
+      for (const q of rows) {
+        const dotCls = q.grounded ? "dot-grounded" : "dot-ungrounded";
+        const fb = q.feedback === 1 ? " \u00b7 kept" : (q.feedback === -1 ? " \u00b7 flagged" : "");
+        const ms = q.latency_ms != null ? ` \u00b7 ${q.latency_ms} ms` : "";
+        const item = document.createElement("div");
+        item.className = "recent-item";
+        item.innerHTML =
+          `<div class="recent-q" title="${escapeHtml(q.question)}">${escapeHtml(q.question)}</div>` +
+          `<div class="recent-meta"><span class="${dotCls}" aria-hidden="true">\u25cf</span>` +
+          `<span>${escapeHtml(q.provider || "?")}${ms}${fb}</span></div>`;
+        box.appendChild(item);
+      }
+    }
+
+    /* ---------- Ingestion ---------- */
+    const ADD_VERB = { indexed: "Added", updated: "Updated", skipped: "Already indexed" };
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const input = document.getElementById("file");
+      const btn = document.getElementById("uploadBtn");
+      const toast = document.getElementById("uploadToast");
+      toast.classList.remove("err");
+      if (!input.files.length) { toast.textContent = "Choose a file to add first."; return; }
+      const fd = new FormData();
+      fd.append("file", input.files[0]);
+      btn.disabled = true;
+      toast.textContent = "Adding\u2026";
+      try {
+        const r = await fetch(`${API}/documents`, { method: "POST", body: fd });
+        if (!r.ok) throw new Error();
+        const j = await r.json();
+        toast.textContent = `${ADD_VERB[j.action] || j.action} \u00b7 ${j.chunks} passage(s)`;
+        input.value = "";
+        refreshStats();
+        refreshLibrary();
+      } catch (e) {
+        toast.classList.add("err");
+        toast.textContent = "That file couldn\u2019t be added \u2014 check the format and try again.";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("urlBtn").addEventListener("click", async () => {
+      const urlEl = document.getElementById("url");
+      const btn = document.getElementById("urlBtn");
+      const url = urlEl.value.trim();
+      const toast = document.getElementById("urlToast");
+      toast.classList.remove("err");
+      if (!url) { toast.textContent = "Paste a URL to fetch."; return; }
+      btn.disabled = true;
+      toast.textContent = "Fetching\u2026";
+      try {
+        const r = await fetch(`${API}/ingest/url`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        if (!r.ok) throw new Error();
+        const j = await r.json();
+        toast.textContent = `${ADD_VERB[j.action] || j.action} \u00b7 ${j.chunks} passage(s)`;
+        urlEl.value = "";
+        refreshStats();
+        refreshLibrary();
+      } catch (e) {
+        toast.classList.add("err");
+        toast.textContent = "Couldn\u2019t fetch that URL. Check it and try again.";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    autoGrow();
+    updateThreadState();
+    refreshStats();
+    refreshLibrary();
+    refreshRecent();
+  </script>
+</body>
+</html>

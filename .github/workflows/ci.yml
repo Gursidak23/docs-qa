@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Install and start Postgres + pgvector
+        # Native install (no Docker) so integration tests have a real
+        # pgvector database. The cluster port is discovered dynamically and
+        # exported so the test DSN always matches.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16-pgvector
+          sudo systemctl start postgresql
+          PORT=$(pg_lsclusters -h | awk '$1=="16"{print $3; exit}')
+          sudo -u postgres psql -p "$PORT" -c "CREATE USER docsqa WITH PASSWORD 'docsqa' SUPERUSER;"
+          sudo -u postgres psql -p "$PORT" -c "CREATE DATABASE docsqa OWNER docsqa;"
+          echo "DOCSQA_TEST_POSTGRES__DSN=postgresql+asyncpg://docsqa:docsqa@localhost:$PORT/docsqa" >> "$GITHUB_ENV"
+
+      - name: Lint (ruff)
+        run: ruff check docsqa tests
+
+      - name: Type-check (mypy)
+        run: mypy docsqa
+
+      - name: Run tests
+        # Integration tests are gated on DOCSQA_TEST_POSTGRES__DSN, which the
+        # step above sets, so the full suite (unit + integration) runs here.
+        run: pytest -q

@@ -1,0 +1,9 @@
+# Gold dataset for `docsqa eval`. Relevance is annotated by source URI, matching
+# how the bundled corpus is ingested: `docsqa ingest docsqa/eval/gold/corpus`.
+# Lines starting with '#' and blank lines are ignored.
+{"id": "pw-reset", "question": "How do I reset my password?", "reference_answer": "Open Settings, go to the Security tab, and click Reset password; a one-time reset link is emailed to you and expires after 30 minutes.", "relevant_uris": ["docsqa/eval/gold/corpus/security.md"]}
+{"id": "api-key", "question": "Where can I find my API key?", "reference_answer": "Your API keys are listed under Settings > Developer > API keys.", "relevant_uris": ["docsqa/eval/gold/corpus/api-keys.md"]}
+{"id": "rate-limit", "question": "What is the default API rate limit?", "reference_answer": "The default rate limit is 60 requests per minute per API key.", "relevant_uris": ["docsqa/eval/gold/corpus/rate-limits.md"]}
+{"id": "billing-plan", "question": "How do I upgrade my billing plan?", "reference_answer": "Open Settings > Billing and choose Upgrade, then select a higher tier and confirm.", "relevant_uris": ["docsqa/eval/gold/corpus/billing.md"]}
+{"id": "two-factor", "question": "How do I turn on two-factor authentication?", "reference_answer": "Enable two-factor authentication from the Security tab in Settings.", "relevant_uris": ["docsqa/eval/gold/corpus/security.md"]}
+{"id": "out-of-scope", "question": "What is the airspeed velocity of an unladen swallow?", "reference_answer": "I don't have enough information in the provided documentation to answer that."}
