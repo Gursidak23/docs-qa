@@ -24,10 +24,10 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.11
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --extra dev --python 3.11
 
       - name: Install and start Postgres + pgvector
         # Native install (no Docker). The cluster port is discovered
@@ -42,13 +42,13 @@ jobs:
           echo "DOCSQA_POSTGRES__DSN=postgresql+asyncpg://docsqa:docsqa@localhost:$PORT/docsqa" >> "$GITHUB_ENV"
 
       - name: Run migrations
-        run: alembic upgrade head
+        run: uv run alembic upgrade head
 
       - name: Ingest evaluation corpus
-        run: docsqa ingest docsqa/eval/gold/corpus
+        run: uv run docsqa ingest docsqa/eval/gold/corpus
 
       - name: Run eval (gates on thresholds)
-        run: docsqa eval --strict --json-out eval-report.json --md-out eval-report.md
+        run: uv run docsqa eval --strict --json-out eval-report.json --md-out eval-report.md
 
       - name: Upload scorecard
         if: always()

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi.testclient import TestClient
 
 from docsqa.api.app import create_app
 from docsqa.api.routes import get_service
-from docsqa.api.service import SqlQaService
 from docsqa.api.schemas import (
     AskRequest,
     AskResponse,
@@ -21,6 +20,7 @@ from docsqa.api.schemas import (
     StatsOut,
     Turn,
 )
+from docsqa.api.service import SqlQaService
 from docsqa.models import IngestResult
 
 
@@ -219,7 +219,9 @@ async def test_ingest_url_uses_content_type_for_source_detection(monkeypatch) ->
     async def fake_session_scope(settings):
         yield object()
 
-    async def fake_fetch_url(url: str, *, timeout_seconds: float = 30.0) -> tuple[bytes, str | None]:
+    async def fake_fetch_url(
+        url: str, *, timeout_seconds: float = 30.0
+    ) -> tuple[bytes, str | None]:
         return b"%PDF-1.4 fake", "application/pdf"
 
     monkeypatch.setattr(db_mod, "session_scope", fake_session_scope)

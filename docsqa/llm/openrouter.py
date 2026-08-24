@@ -73,26 +73,28 @@ class OpenRouterClient:
         payload["stream"] = True
         headers = self._headers()
         try:
-            async with httpx.AsyncClient(timeout=self._settings.request_timeout_seconds) as client:
-                async with client.stream("POST", url, json=payload, headers=headers) as resp:
-                    resp.raise_for_status()
-                    async for line in resp.aiter_lines():
-                        if not line.startswith("data:"):
-                            continue
-                        data = line[5:].strip()
-                        if not data or data == "[DONE]":
-                            continue
-                        try:
-                            parsed = json.loads(data)
-                        except Exception:
-                            continue
-                        choices = parsed.get("choices") or []
-                        if not choices:
-                            continue
-                        delta = choices[0].get("delta") or {}
-                        content = delta.get("content")
-                        if content:
-                            yield content
+            async with (
+                httpx.AsyncClient(timeout=self._settings.request_timeout_seconds) as client,
+                client.stream("POST", url, json=payload, headers=headers) as resp,
+            ):
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if not data or data == "[DONE]":
+                        continue
+                    try:
+                        parsed = json.loads(data)
+                    except Exception:
+                        continue
+                    choices = parsed.get("choices") or []
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta") or {}
+                    content = delta.get("content")
+                    if content:
+                        yield content
         except LlmError:
             raise
         except Exception as exc:  # noqa: BLE001 - normalize provider errors

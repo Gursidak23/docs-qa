@@ -15,10 +15,10 @@ jobs:
         uses: astral-sh/setup-uv@v3
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.11
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --extra dev --python 3.11
 
       - name: Install and start Postgres + pgvector
         # Native install (no Docker) so integration tests have a real
@@ -34,12 +34,12 @@ jobs:
           echo "DOCSQA_TEST_POSTGRES__DSN=postgresql+asyncpg://docsqa:docsqa@localhost:$PORT/docsqa" >> "$GITHUB_ENV"
 
       - name: Lint (ruff)
-        run: ruff check docsqa tests
+        run: uv run ruff check docsqa tests
 
       - name: Type-check (mypy)
-        run: mypy docsqa
+        run: uv run mypy docsqa
 
       - name: Run tests
         # Integration tests are gated on DOCSQA_TEST_POSTGRES__DSN, which the
         # step above sets, so the full suite (unit + integration) runs here.
-        run: pytest -q
+        run: uv run pytest -q
