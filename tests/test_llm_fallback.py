@@ -67,8 +67,36 @@ async def test_stream_fails_over_before_first_token() -> None:
     assert tokens == ["a", "b", "c"]
 
 
-def test_name_reports_primary() -> None:
+def test_name_reports_primary_before_any_call() -> None:
     assert FallbackLlmClient(OkLlm("primary", "x")).name == "primary"
+
+
+async def test_name_reports_provider_that_actually_served_after_failover() -> None:
+    """Attributing a fallback answer to the primary would misreport the provider."""
+    client = FallbackLlmClient(FailLlm("gemini"), OkLlm("openrouter", "backup"), max_retries=1)
+    await client.complete(MESSAGES, temperature=0.0, max_tokens=10)
+    assert client.name == "openrouter"
+
+
+async def test_stream_name_reports_serving_provider() -> None:
+    client = FallbackLlmClient(FailLlm("gemini"), OkLlm("openrouter", "a b"), max_retries=1)
+    [tok async for tok in client.stream(MESSAGES, temperature=0.0, max_tokens=10)]
+    assert client.name == "openrouter"
+
+
+async def test_name_returns_to_primary_when_primary_recovers() -> None:
+    client = FallbackLlmClient(OkLlm("gemini", "ok"), OkLlm("openrouter", "backup"), max_retries=1)
+    await client.complete(MESSAGES, temperature=0.0, max_tokens=10)
+    assert client.name == "gemini"
+
+
+async def test_rate_limited_wrapper_delegates_serving_provider() -> None:
+    from docsqa.llm.ratelimit import AsyncTokenBucket, RateLimitedLlmClient
+
+    inner = FallbackLlmClient(FailLlm("gemini"), OkLlm("openrouter", "backup"), max_retries=1)
+    client = RateLimitedLlmClient(inner, AsyncTokenBucket(600))
+    await client.complete(MESSAGES, temperature=0.0, max_tokens=10)
+    assert client.name == "openrouter"
 
 
 def test_build_single_llm_supports_openrouter_provider() -> None:

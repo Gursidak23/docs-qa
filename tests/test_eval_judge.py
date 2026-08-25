@@ -72,9 +72,29 @@ async def test_llm_judge_falls_back_on_bad_json() -> None:
         question="q", answer="shared words here", context="shared words here", reference=None
     )
     assert verdict.judge == "lexical"
+    assert verdict.degraded is True
 
 
 async def test_llm_judge_falls_back_on_error() -> None:
     judge = LlmJudge(FakeLlm(error=LlmError("boom")))
     verdict = await judge.judge(question="q", answer="a", context="a", reference=None)
     assert verdict.judge == "lexical"
+    # Flagged so the harness excludes it: a rate-limit outage is not evidence
+    # of a hallucination.
+    assert verdict.degraded is True
+
+
+async def test_real_llm_verdict_is_not_degraded() -> None:
+    reply = '{"grounded": true, "relevant": true, "faithfulness": 0.9, "rationale": "ok"}'
+    verdict = await LlmJudge(FakeLlm(reply=reply)).judge(
+        question="q", answer="a", context="c", reference=None
+    )
+    assert verdict.degraded is False
+
+
+async def test_lexical_judge_used_directly_is_not_degraded() -> None:
+    """Choosing the lexical judge deliberately is a real verdict, not a fallback."""
+    verdict = await LexicalJudge().judge(
+        question="q", answer="shared words here", context="shared words here", reference=None
+    )
+    assert verdict.degraded is False

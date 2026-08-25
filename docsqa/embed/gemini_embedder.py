@@ -1,9 +1,9 @@
 """Optional Gemini embeddings adapter (free tier).
 
-Note: ``text-embedding-004`` returns 768-dim vectors, so using this provider
-requires setting ``DOCSQA_EMBED__DIM=768`` and a migration that widens the
+Note: ``gemini-embedding-001`` returns 3072-dim vectors, so using this provider
+requires setting ``DOCSQA_EMBED__DIM=3072`` and a migration that widens the
 ``chunk.embedding`` column. The default fastembed model (384-dim) matches the
-shipped schema out of the box.
+shipped schema out of the box, and unlike this provider it costs no API quota.
 """
 
 from __future__ import annotations

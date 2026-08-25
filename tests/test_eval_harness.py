@@ -4,6 +4,7 @@ from docsqa.config import Settings
 from docsqa.eval.dataset import GoldCase
 from docsqa.eval.harness import EvalHarness, relevance_vector
 from docsqa.eval.judge import JudgeVerdict
+from docsqa.llm.base import LlmError
 from docsqa.models import AnswerResult, AnswerSource, RetrievedChunk
 
 
@@ -47,14 +48,43 @@ class FakeAnswerer:
 class FakeJudge:
     name = "fake"
 
-    def __init__(self, grounded: bool, relevant: bool) -> None:
+    def __init__(self, grounded: bool, relevant: bool, *, degraded: bool = False) -> None:
         self.grounded = grounded
         self.relevant = relevant
+        self.degraded = degraded
 
     async def judge(
         self, *, question: str, answer: str, context: str, reference: str | None
     ) -> JudgeVerdict:
-        return JudgeVerdict(self.grounded, self.relevant, 1.0 if self.grounded else 0.0, "", "fake")
+        return JudgeVerdict(
+            self.grounded,
+            self.relevant,
+            1.0 if self.grounded else 0.0,
+            "",
+            "fake",
+            degraded=self.degraded,
+        )
+
+
+class ScriptedJudge:
+    """Returns a per-question verdict so a partial judge outage can be simulated."""
+
+    name = "scripted"
+
+    def __init__(self, by_question: dict[str, JudgeVerdict]) -> None:
+        self._by_question = by_question
+
+    async def judge(
+        self, *, question: str, answer: str, context: str, reference: str | None
+    ) -> JudgeVerdict:
+        return self._by_question[question]
+
+
+class FailingAnswerer:
+    """Stands in for a run with no usable LLM credentials."""
+
+    async def answer(self, session: object, question: str) -> AnswerResult:
+        raise LlmError("no credentials")
 
 
 def _answer(text: str, *, sources: int, citations: list[int], outcome: str) -> AnswerResult:
@@ -136,3 +166,72 @@ async def test_harness_fails_when_answer_hallucinates() -> None:
     assert card.groundedness == 0.0
     assert card.hallucination_rate == 1.0
     assert card.passed is False
+
+
+async def test_degraded_verdict_is_not_counted_as_a_hallucination() -> None:
+    """A judge outage must not turn a healthy answer into a quality regression."""
+    settings = Settings()
+    cases = [
+        GoldCase(id="good", question="qa", relevant_uris=["docA"]),
+        GoldCase(id="unjudged", question="qb", relevant_uris=["docB"]),
+    ]
+    retriever = FakeRetriever({"qa": [_chunk(1, 1, "docA")], "qb": [_chunk(2, 2, "docB")]})
+    answerer = FakeAnswerer(
+        {
+            "qa": _answer("fine [1]", sources=1, citations=[1], outcome="answered"),
+            "qb": _answer("also fine [1]", sources=1, citations=[1], outcome="answered"),
+        }
+    )
+    judge = ScriptedJudge(
+        {
+            "qa": JudgeVerdict(True, True, 1.0, "", "llm"),
+            # Judge was rate-limited: the lexical fallback guessed "not grounded".
+            "qb": JudgeVerdict(False, False, 0.0, "", "lexical", degraded=True),
+        }
+    )
+    card = await EvalHarness(retriever, IdentityReranker(), answerer, judge, settings).run(
+        None, cases, dataset="unit"
+    )
+
+    assert card.num_answered == 2
+    assert card.num_judge_degraded == 1
+    assert card.judged_fraction == 0.5
+    # Scored on the one trustworthy verdict only, not 50% "hallucination".
+    assert card.groundedness == 1.0
+    assert card.hallucination_rate == 0.0
+    assert card.passed is True
+
+
+async def test_all_verdicts_degraded_cannot_certify_quality() -> None:
+    """Zero trustworthy verdicts must fail the gate, not pass vacuously."""
+    settings = Settings()
+    cases = [GoldCase(id="a", question="qa", relevant_uris=["docA"])]
+    retriever = FakeRetriever({"qa": [_chunk(1, 1, "docA")]})
+    answerer = FakeAnswerer(
+        {"qa": _answer("text [1]", sources=1, citations=[1], outcome="answered")}
+    )
+    judge = FakeJudge(True, True, degraded=True)
+    card = await EvalHarness(retriever, IdentityReranker(), answerer, judge, settings).run(
+        None, cases, dataset="unit"
+    )
+
+    assert card.judged_fraction == 0.0
+    assert card.groundedness is None  # unmeasured, not 100%
+    assert card.hallucination_rate is None
+    assert card.passed is False
+
+
+async def test_run_without_llm_credentials_still_gates_retrieval_only() -> None:
+    """CI without LLM keys keeps grading retrieval and leaves answer gates unmeasured."""
+    settings = Settings()
+    cases = [GoldCase(id="a", question="qa", relevant_uris=["docA"])]
+    retriever = FakeRetriever({"qa": [_chunk(1, 1, "docA")]})
+    card = await EvalHarness(
+        retriever, IdentityReranker(), FailingAnswerer(), FakeJudge(True, True), settings
+    ).run(None, cases, dataset="unit")
+
+    assert card.num_answered == 0
+    assert card.recall_at_k == 1.0
+    assert card.groundedness is None
+    assert card.hallucination_rate is None
+    assert card.passed is True

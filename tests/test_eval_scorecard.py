@@ -46,6 +46,7 @@ def _card(passed: bool) -> Scorecard:
             "min_mrr": 0.5,
             "min_groundedness": 0.8,
             "max_hallucination_rate": 0.15,
+            "min_judged_fraction": 0.5,
         },
         passed=passed,
         cases=[case],
@@ -69,3 +70,28 @@ def test_to_markdown_reports_pass_and_gates() -> None:
 
 def test_to_markdown_reports_fail() -> None:
     assert "Result: **FAIL**" in to_markdown(_card(passed=False))
+
+
+def test_unmeasured_answer_metrics_render_as_skip_not_pass() -> None:
+    """No trustworthy verdict must not look like a perfect score."""
+    card = _card(passed=True)
+    card.groundedness = None
+    card.hallucination_rate = None
+    card.answer_relevance = None
+    md = to_markdown(card)
+    # Judge-derived rows report "n/a" and SKIP their gate; judge-independent
+    # rows (citations, guard) stay measured.
+    assert "| Groundedness | n/a | >= 80.0% | SKIP |" in md
+    assert "| Hallucination rate | n/a | <= 15.0% | SKIP |" in md
+    assert "| Answer relevance | n/a | - | - |" in md
+    assert "| Citation accuracy | 100.0% | - | - |" in md
+
+
+def test_degraded_case_shows_no_grounded_verdict() -> None:
+    card = _card(passed=True)
+    card.cases[0].judge_degraded = True
+    card.num_judge_degraded = 1
+    card.judged_fraction = 0.0
+    md = to_markdown(card)
+    assert "1 degraded (judge unavailable)" in md
+    assert "| c1 | answered | 1.00 | 1.00 | n/a |" in md

@@ -71,6 +71,8 @@ class CaseResult:
     answer_f1: float | None
     judge: str
     provider: str
+    # Verdict came from the fallback judge after the LLM judge failed.
+    judge_degraded: bool = False
 
 
 @dataclass(slots=True)
@@ -82,15 +84,20 @@ class Scorecard:
     recall_at_k: float
     mrr: float
     ndcg_at_k: float
-    groundedness: float
-    hallucination_rate: float
-    answer_relevance: float
-    citation_accuracy: float
+    # None when no case produced a trustworthy verdict (no LLM keys, or the
+    # judge was down); the corresponding gates are skipped rather than passed.
+    groundedness: float | None
+    hallucination_rate: float | None
+    answer_relevance: float | None
+    citation_accuracy: float | None
     answer_f1: float
-    guard_grounded_rate: float
+    guard_grounded_rate: float | None
     judge: str
     thresholds: dict[str, float]
     passed: bool
+    # Answered cases whose verdict came from a degraded (fallback) judge.
+    num_judge_degraded: int = 0
+    judged_fraction: float = 1.0
     cases: list[CaseResult] = field(default_factory=list)
 
 
@@ -183,6 +190,7 @@ class EvalHarness:
             answer_f1=f1,
             judge=verdict.judge,
             provider=result.provider,
+            judge_degraded=verdict.degraded,
         )
 
     async def run(
@@ -192,17 +200,29 @@ class EvalHarness:
 
         retrieval = [r for r in results if r.num_relevant > 0]
         answered = [r for r in results if r.answered]
+        # A degraded verdict is a fallback estimate, not a grade: counting one as
+        # a hallucination turns a provider outage into a fake quality regression.
+        judged = [r for r in answered if not r.judge_degraded]
         f1s = [r.answer_f1 for r in results if r.answer_f1 is not None]
 
         recall = _mean([r.recall_at_k for r in retrieval])
         mrr_score = _mean([r.mrr for r in retrieval])
         ndcg = _mean([r.ndcg_at_k for r in retrieval])
-        groundedness = _mean([1.0 if r.judged_grounded else 0.0 for r in answered], default=1.0)
-        hallucination = _mean([0.0 if r.judged_grounded else 1.0 for r in answered], default=0.0)
-        relevance = _mean([1.0 if r.judged_relevant else 0.0 for r in answered])
-        citations = _mean([r.citation_accuracy for r in answered])
+        groundedness = (
+            _mean([1.0 if r.judged_grounded else 0.0 for r in judged]) if judged else None
+        )
+        hallucination = (
+            _mean([0.0 if r.judged_grounded else 1.0 for r in judged]) if judged else None
+        )
+        relevance = _mean([1.0 if r.judged_relevant else 0.0 for r in judged]) if judged else None
+        citations = _mean([r.citation_accuracy for r in answered]) if answered else None
         answer_f1 = _mean(f1s)
-        guard_rate = _mean([1.0 if r.grounded_guard else 0.0 for r in answered])
+        guard_rate = (
+            _mean([1.0 if r.grounded_guard else 0.0 for r in answered]) if answered else None
+        )
+        # Nothing answered at all (e.g. CI with no LLM key) leaves answer quality
+        # unmeasured rather than under-covered, so coverage is vacuously fine.
+        judged_fraction = (len(judged) / len(answered)) if answered else 1.0
 
         ev = self.settings.eval
         thresholds = {
@@ -210,12 +230,14 @@ class EvalHarness:
             "min_mrr": ev.min_mrr,
             "min_groundedness": ev.min_groundedness,
             "max_hallucination_rate": ev.max_hallucination_rate,
+            "min_judged_fraction": ev.min_judged_fraction,
         }
         passed = (
             recall >= ev.min_recall_at_k
             and mrr_score >= ev.min_mrr
-            and groundedness >= ev.min_groundedness
-            and hallucination <= ev.max_hallucination_rate
+            and judged_fraction >= ev.min_judged_fraction
+            and (groundedness is None or groundedness >= ev.min_groundedness)
+            and (hallucination is None or hallucination <= ev.max_hallucination_rate)
         )
         judges = sorted({r.judge for r in answered})
 
@@ -236,5 +258,7 @@ class EvalHarness:
             judge="+".join(judges) if judges else "none",
             thresholds=thresholds,
             passed=passed,
+            num_judge_degraded=len(answered) - len(judged),
+            judged_fraction=judged_fraction,
             cases=results,
         )

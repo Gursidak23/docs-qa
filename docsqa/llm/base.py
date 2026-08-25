@@ -18,7 +18,10 @@ class LlmError(RuntimeError):
 
 
 class LlmClient(Protocol):
-    name: str
+    # Read-only so wrappers can compute it (e.g. the fail-over client reports
+    # the provider that actually served the call) rather than store a constant.
+    @property
+    def name(self) -> str: ...
 
     async def complete(
         self, messages: list[ChatMessage], *, temperature: float, max_tokens: int

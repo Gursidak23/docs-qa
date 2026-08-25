@@ -41,7 +41,11 @@ class RateLimitedLlmClient:
     def __init__(self, inner: LlmClient, bucket: AsyncTokenBucket) -> None:
         self.inner = inner
         self.bucket = bucket
-        self.name = inner.name
+
+    @property
+    def name(self) -> str:
+        """Delegate so a wrapped fail-over client can report its serving provider."""
+        return self.inner.name
 
     async def complete(
         self, messages: list[ChatMessage], *, temperature: float, max_tokens: int

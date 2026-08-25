@@ -29,8 +29,9 @@ class EmbedSettings(BaseModel):
     model_name: str = "BAAI/bge-small-en-v1.5"
     dim: int = 384
     batch_size: int = 64
-    # Used only when provider == "gemini".
-    gemini_model: str = "text-embedding-004"
+    # Used only when provider == "gemini". Note this model returns 3072-dim
+    # vectors, so it also needs dim=3072 and a widened chunk.embedding column.
+    gemini_model: str = "gemini-embedding-001"
 
 
 class RerankSettings(BaseModel):
@@ -65,7 +66,7 @@ class LlmSettings(BaseModel):
     fallback_provider: Literal["gemini", "groq", "ollama", "openrouter", "none"] = "groq"
 
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
 
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
@@ -75,7 +76,7 @@ class LlmSettings(BaseModel):
 
     openrouter_api_key: str | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    openrouter_model: str = "openai/gpt-oss-20b:free"
+    openrouter_model: str = "minimax/minimax-m3:free"
 
     temperature: float = 0.1
     max_output_tokens: int = 1024
@@ -89,7 +90,8 @@ class CacheSettings(BaseModel):
     answer_ttl_seconds: int = 3600
     embed_ttl_seconds: int = 86400
     # Token-bucket guard so we stay inside free LLM quotas (requests/minute).
-    llm_rate_per_minute: int = 25
+    # Gemini's free tier allows 5/min, so stay just under it.
+    llm_rate_per_minute: int = 4
 
 
 class EvalSettings(BaseModel):
@@ -100,6 +102,9 @@ class EvalSettings(BaseModel):
     min_mrr: float = 0.5
     min_groundedness: float = 0.8
     max_hallucination_rate: float = 0.15
+    # Fraction of answered cases that must yield a real (non-degraded) verdict
+    # before answer-quality metrics are trusted enough to gate on.
+    min_judged_fraction: float = 0.5
     # Judge provider for groundedness/answer relevance (LLM-as-judge).
     use_llm_judge: bool = True
 

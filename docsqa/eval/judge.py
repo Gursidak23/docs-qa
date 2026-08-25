@@ -4,7 +4,9 @@ Two implementations sit behind the same small interface:
 
 * :class:`LlmJudge` asks an LLM to grade the answer against the retrieved
   context and (optionally) a reference answer, returning a strict JSON verdict.
-  Any provider/parse failure transparently degrades to the lexical judge.
+  Any provider/parse failure degrades to the lexical judge, but the verdict is
+  flagged ``degraded`` so the harness can exclude it from gated quality metrics
+  -- otherwise a rate-limit outage silently manufactures "hallucinations".
 * :class:`LexicalJudge` is a free, deterministic fallback based on token
   overlap. It needs no network access, so unit tests and offline runs still get
   meaningful (if coarser) numbers.
@@ -14,7 +16,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol
 
 from ..llm.base import ChatMessage, LlmClient
@@ -44,6 +46,9 @@ class JudgeVerdict:
     faithfulness: float
     rationale: str
     judge: str  # "llm" | "lexical"
+    # True when an LLM judge was configured but could not produce a verdict, so
+    # this result is a fallback estimate rather than a real grade.
+    degraded: bool = False
 
 
 class Judge(Protocol):
@@ -126,16 +131,18 @@ class LlmJudge:
             )
         except Exception as exc:  # noqa: BLE001 - any provider error degrades gracefully
             log.warning("llm_judge_failed", error=str(exc))
-            return await self.fallback.judge(
+            verdict = await self.fallback.judge(
                 question=question, answer=answer, context=context, reference=reference
             )
+            return replace(verdict, degraded=True)
 
         data = _parse_verdict(raw)
         if data is None:
             log.warning("llm_judge_unparseable")
-            return await self.fallback.judge(
+            verdict = await self.fallback.judge(
                 question=question, answer=answer, context=context, reference=reference
             )
+            return replace(verdict, degraded=True)
         return JudgeVerdict(
             grounded=bool(data.get("grounded", False)),
             relevant=bool(data.get("relevant", False)),
